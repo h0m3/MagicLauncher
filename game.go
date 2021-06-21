@@ -19,12 +19,14 @@ type Game struct {
 	LauncherPath     string      // Optional (default)
 	Name             string      // Optional
 	StartupArguments []string    // Optional
+	Autoclose        bool        // Optional
 }
 
 // Create new empty game structure
 func newGame() Game {
 	return Game{
-		Timeout: GameTimeout{Startup: 60, Shutdown: 60},
+		Timeout:   GameTimeout{Startup: 60, Shutdown: 60},
+		Autoclose: true,
 	}
 }
 

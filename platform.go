@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/mitchellh/go-ps"
 )
@@ -29,6 +31,8 @@ func getPlatformPath(platform string) string {
 	switch platform {
 	case "steam":
 		return programFilesx86("Steam\\steam.exe")
+	case "epic":
+		return programFilesx86("Epic Games\\Launcher\\Portal\\Binaries\\Win32\\EpicGamesLauncher.exe")
 	}
 	return ""
 }
@@ -43,11 +47,17 @@ func startApplication(game Game) (*exec.Cmd, error) {
 	switch game.Platform {
 	case "steam":
 		command = game.LauncherPath
-		arguments = []string{"-applaunch", game.Appid}
-		arguments = append(arguments, game.StartupArguments...)
+		arguments = []string{"-silent", "-applaunch", game.Appid}
+	case "epic":
+		command = "rundll32"
+		url := fmt.Sprintf("com.epicgames.launcher://apps/%s?action=launch&silent=true", game.Appid)
+		arguments = []string{"url.dll,FileProtocolHandler", url}
+	default:
+		return nil, fmt.Errorf("invalid platform '%s'", game.Platform)
 	}
 
 	// Create command object and set default parameters
+	arguments = append(arguments, game.StartupArguments...)
 	cmd := exec.Command(command, arguments...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -61,36 +71,33 @@ func startApplication(game Game) (*exec.Cmd, error) {
 
 // Stop application and exit platform if necessary
 func stopApplication(game Game, cmd *exec.Cmd) error {
-
-	// Check if process is already closed
-	if process, err := ps.FindProcess(cmd.Process.Pid); process == nil {
-		if err := cmd.Process.Release(); err != nil {
-			return err
-		}
-		return err
+	// Check if autoclose is enabled
+	if !game.Autoclose {
+		return cmd.Wait()
 	}
 
-	// Get correct syntax accourdly with platform
-	var command string
-	var arguments []string
-
+	// Execute correct action based on the platform
 	switch game.Platform {
 	case "steam":
-		command = game.LauncherPath
-		arguments = []string{"-shutdown"}
+		if err := runCommand(game.LauncherPath, "-shutdown"); err != nil {
+			return err
+		}
+		return cmd.Wait()
+	case "epic":
+		time.Sleep(time.Duration(game.Timeout.Shutdown) * time.Second)
+		if err := killProcess("EpicGamesLauncher.exe"); err != nil {
+			return err
+		}
+		if err := killProcess("EpicWebHelper.exe"); err != nil {
+			return err
+		}
+		if err := cmd.Process.Kill(); err != nil {
+			return err
+		}
+		return cmd.Process.Release()
 	}
 
-	// Execute stop action
-	cmdStop := exec.Command(command, arguments...)
-	cmdStop.Stdout = os.Stdout
-	cmdStop.Stderr = os.Stderr
-
-	if err := cmdStop.Run(); err != nil {
-		return err
-	}
-
-	// Wait for process to end
-	return cmd.Wait()
+	return fmt.Errorf("invalid platform '%s'", game.Platform)
 }
 
 // Check if a list of processes is running
@@ -109,4 +116,38 @@ func isRunning(processes ...string) bool {
 	}
 
 	return false
+}
+
+// Run a command, block execution
+func runCommand(command string, arguments ...string) error {
+	cmd := exec.Command(command, arguments...)
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
+}
+
+// Kill a process based on name
+func killProcess(process string) error {
+	// Get a list of processes
+	processes, err := ps.Processes()
+	if err != nil {
+		return err
+	}
+
+	// Find and kill the process in the table
+	for _, item := range processes {
+		if item.Executable() == process {
+			osProcess, err := os.FindProcess(item.Pid())
+			if err != nil {
+				return err
+			}
+			if err := osProcess.Kill(); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	// Return error if no process found
+	return fmt.Errorf("no process found with name '%s'", process)
 }
