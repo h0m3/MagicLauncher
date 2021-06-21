@@ -1,73 +1,85 @@
 package main
 
-import (
-	"os/exec"
-	"time"
-
-	"github.com/shirou/gopsutil/process"
-)
-
 // Start a command a return the cmd control
 // Dont block execution
-func startCommand(program string, params ...string) (*exec.Cmd, error) {
-	cmd := exec.Command(program, params...)
-	err := cmd.Start()
-	return cmd, err
-}
+// func startCommand(program string, params ...string) (*exec.Cmd, error) {
+// 	cmd := exec.Command(program, params...)
+// 	cmd.Stdout = os.Stdout
+// 	cmd.Stderr = os.Stderr
+// 	err := cmd.Start()
+// 	return cmd, err
+// }
 
-// Open a application URL using startCommand()
-// Return cmd control
-func openURL(url string) (*exec.Cmd, error) {
-	return startCommand("rundll32", "url.dll,FileProtocolHandler", url)
-}
+// Run a command
+// Block execution
+// func runCommand(program string, params ...string) error {
+// 	cmd := exec.Command(program, params...)
+// 	cmd.Stdout = os.Stdout
+// 	cmd.Stderr = os.Stderr
+// 	err := cmd.Run()
+// 	return err
+// }
 
-// Check if a list of processes is running
-// Return true if any process is running, false otherwise
-func isRunning(names ...string) bool {
-	processes, err := process.Processes()
-	if err != nil {
-		return false
-	}
+// // Open a application URL using startCommand()
+// // Return cmd control
+// func openURL(url string) (*exec.Cmd, error) {
+// 	return startCommand("rundll32", "url.dll,FileProtocolHandler", url)
+// }
 
-	for _, process := range processes {
-		n, err := process.Name()
-		if err != nil {
-			continue
-		}
+// // Check if a list of processes is running
+// // Return true if any process is running, false otherwise
+// func isRunning(names ...string) bool {
+// 	processes, err := process.Processes()
+// 	if err != nil {
+// 		return false
+// 	}
 
-		for _, name := range names {
-			if n == name {
-				return true
-			}
-		}
-	}
+// 	for _, process := range processes {
+// 		n, err := process.Name()
+// 		if err != nil {
+// 			continue
+// 		}
 
-	return false
-}
+// 		for _, name := range names {
+// 			if n == name {
+// 				return true
+// 			}
+// 		}
+// 	}
+
+// 	return false
+// }
 
 // Check if a list of process started until the timeout ends
 // Return false if the timeout reached end and true if found the process
-func timeoutToStart(timeout uint16, programs []string) bool {
-	for i := uint16(0); i < timeout; i++ {
-		if isRunning(programs...) {
-			return true
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return false
-}
+// func timeoutToStart(timeout uint16, programs []string) bool {
+// 	for i := uint16(0); i < timeout; i++ {
+// 		if isRunning(programs...) {
+// 			return true
+// 		}
+// 		time.Sleep(1 * time.Second)
+// 	}
+// 	return false
+// }
 
-// Check if a list of process ended until the timeout ends
-// Return false if the timeout reached end and true if found process
-func timeoutToStop(timeout uint16, programs []string) bool {
-	for i := uint16(0); i < timeout; i++ {
-		if !isRunning(programs...) {
-			return true
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return false
-}
+// // Check if a list of process ended until the timeout ends
+// // Return false if the timeout reached end and true if found process
+// func timeoutToStop(timeout uint16, programs []string) bool {
+// 	for i := uint16(0); i < timeout; i++ {
+// 		if !isRunning(programs...) {
+// 			return true
+// 		}
+// 		time.Sleep(1 * time.Second)
+// 	}
+// 	return false
+// }
+
+// // Wait for application
+// func waitApplication(processes ...string) {
+// 	for isRunning(processes...) {
+// 		time.Sleep(5 * time.Second)
+// 	}
+// }
 
 // Kill a list of processes in order
 // If a process dont exists (already killed) do nothing
@@ -100,13 +112,6 @@ func timeoutToStop(timeout uint16, programs []string) bool {
 
 // 	return nil
 // }
-
-// Wait for application
-func waitApplication(processes ...string) {
-	for isRunning(processes...) {
-		time.Sleep(5 * time.Second)
-	}
-}
 
 // func getProcess(names ...string) ([]*process.Process, error) {
 // 	var foundProcesses []*process.Process
