@@ -33,6 +33,8 @@ func getPlatformPath(platform string) string {
 		return programFilesx86("Steam\\steam.exe")
 	case "epic":
 		return programFilesx86("Epic Games\\Launcher\\Portal\\Binaries\\Win32\\EpicGamesLauncher.exe")
+	case "ubisoft":
+		return programFilesx86("Ubisoft\\Ubisoft Game Launcher\\UbisoftConnect.exe")
 	}
 	return ""
 }
@@ -51,6 +53,10 @@ func startApplication(game Game) (*exec.Cmd, error) {
 	case "epic":
 		command = "rundll32"
 		url := fmt.Sprintf("com.epicgames.launcher://apps/%s?action=launch&silent=true", game.Appid)
+		arguments = []string{"url.dll,FileProtocolHandler", url}
+	case "ubisoft":
+		command = "rundll32"
+		url := fmt.Sprintf("uplay://launch/%s", game.Appid)
 		arguments = []string{"url.dll,FileProtocolHandler", url}
 	default:
 		return nil, fmt.Errorf("invalid platform '%s'", game.Platform)
@@ -76,7 +82,6 @@ func stopApplication(game Game, cmd *exec.Cmd) error {
 		return cmd.Wait()
 	}
 
-	// Execute correct action based on the platform
 	switch game.Platform {
 	case "steam":
 		if err := runCommand(game.LauncherPath, "-shutdown"); err != nil {
@@ -91,10 +96,16 @@ func stopApplication(game Game, cmd *exec.Cmd) error {
 		if err := killProcess("EpicWebHelper.exe"); err != nil {
 			return err
 		}
-		if err := cmd.Process.Kill(); err != nil {
+		return cmd.Wait()
+	case "ubisoft":
+		time.Sleep(time.Duration(game.Timeout.Shutdown) * time.Second)
+		if err := killProcess("upc.exe"); err != nil {
 			return err
 		}
-		return cmd.Process.Release()
+		if err := killProcess("UplayWebCore.exe"); err != nil {
+			return err
+		}
+		return cmd.Wait()
 	}
 
 	return fmt.Errorf("invalid platform '%s'", game.Platform)
